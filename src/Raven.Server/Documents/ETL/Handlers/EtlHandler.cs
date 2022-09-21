@@ -70,6 +70,30 @@ namespace Raven.Server.Documents.ETL.Handlers
             }
         }
 
+        [RavenAction("/databases/*/etl/debug/states", "GET", AuthorizationStatus.ValidUser, EndpointType.Read, IsDebugInformationEndpoint = true)]
+        public async Task GetStates()
+        {
+            var etlStats = GetProcessesToReportOn().Select(x => new EtlTaskState
+            {
+                TaskName = x.Key,
+                States = x.Value.Select(y => new EtlProcessStateForDebug
+                {
+                    TransformationName = y.TransformationName,
+                    State = EtlProcess.GetProcessState(Database, x.Key, y.TransformationName)
+                }).ToArray()
+            }).ToArray();
+
+            using (ContextPool.AllocateOperationContext(out JsonOperationContext context))
+            {
+                await using (var writer = new AsyncBlittableJsonTextWriterForDebug(context, ServerStore, ResponseBodyStream()))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteArray(context, "Results", etlStats, (w, c, stats) => w.WriteObject(context.ReadObject(stats.ToJson(), "etl/stats")));
+                    writer.WriteEndObject();
+                }
+            }
+        }
+
         [RavenAction("/databases/*/etl/performance", "GET", AuthorizationStatus.ValidUser, EndpointType.Read)]
         public async Task Performance()
         {
