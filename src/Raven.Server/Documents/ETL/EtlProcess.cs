@@ -454,6 +454,11 @@ namespace Raven.Server.Documents.ETL
 
                         Statistics.RecordLoadError(e.ToString(), documentId: null, count: stats.NumberOfExtractedItems.Sum(x => x.Value));
                     }
+                    else
+                    {
+                        if (Logger.IsOperationsEnabled)
+                            Logger.Operations($"DEBUG: We didn't load transformed data for '{Name}' because the operation was cancelled", e);
+                    }
 
                     return false;
                 }
@@ -730,6 +735,11 @@ namespace Raven.Server.Documents.ETL
 
                     var startEtag = state.GetLastProcessedEtag(Database.DbBase64Id, _serverStore.NodeTag);
 
+                    if (Logger.IsOperationsEnabled)
+                    {
+                        Logger.Operations($"DEBUG: Starting ETL batch of '{Name}' process from etag: {startEtag}");
+                    }
+
                     using (Statistics.NewBatch())
                     using (Database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context))
                     {
@@ -764,6 +774,11 @@ namespace Raven.Server.Documents.ETL
 
                                     var lastProcessedInBatch = Math.Max(stats.LastLoadedEtag, stats.LastFilteredOutEtags.Values.Max());
 
+                                    if (Logger.IsOperationsEnabled)
+                                    {
+                                        Logger.Operations($"DEBUG: Loaded ETL batch of '{Name}' process. Last processed etag is {lastProcessedInBatch}. Last etag in stats is: {Statistics.LastProcessedEtag}. No failures: {noFailures}. (last loaded: {stats.LastLoadedEtag}, last filtered: {stats.LastFilteredOutEtags.Values.Max()})");
+                                    }
+
                                     if (lastProcessedInBatch > startEtag && noFailures)
                                     {
                                         didWork = true;
@@ -774,14 +789,25 @@ namespace Raven.Server.Documents.ETL
 
                                         UpdateMetrics(startTime, stats);
 
+                                        if (Logger.IsOperationsEnabled)
+                                        {
+                                            Logger.Operations($"DEBUG: Loaded ETL batch of '{Name}' process succesfully. Last processed etag is {lastProcessedInBatch}");
+                                        }
+
                                         if (Logger.IsInfoEnabled)
                                             LogSuccessfulBatchInfo(stats);
                                     }
                                 }
                             }
-                            catch (OperationCanceledException)
+                            catch (OperationCanceledException oce)
                             {
-                                return;
+                                if (CancellationToken.IsCancellationRequested)
+                                    return;
+
+                                if (Logger.IsOperationsEnabled)
+                                {
+                                    Logger.Operations($"DEBUG: Operation cancelled was thrown for ETL '{Name}' process", oce);
+                                }
                             }
                             catch (Exception e)
                             {
