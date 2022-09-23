@@ -257,7 +257,9 @@ namespace Raven.Client.Http
             GlobalHttpClientWithoutCompression.Clear();
         }
 
-        private static bool ShouldRemoveHttpClient(SocketException exception)
+        private static ConcurrentSet<SocketError> _loggedSocketErrorCodes = new ConcurrentSet<SocketError>();
+
+        private static bool ShouldRemoveHttpClient(SocketException exception, string url)
         {
             switch (exception.SocketErrorCode)
             {
@@ -266,8 +268,22 @@ namespace Raven.Client.Http
                 case SocketError.HostUnreachable:
                 case SocketError.ConnectionRefused:
                     return true;
+                case SocketError.TryAgain:
+                    if (_loggedSocketErrorCodes.TryAdd(exception.SocketErrorCode))
+                    {
+                        if (Logger.IsOperationsEnabled)
+                            Logger.Operations($"DEBUG (HttpClient): Got {SocketError.TryAgain} socket error code. Forcing recreate HttpClient. Url: {url} {exception}");
+                    }
 
+                    return true;
                 default:
+
+                    if (_loggedSocketErrorCodes.TryAdd(exception.SocketErrorCode))
+                    {
+                        if (Logger.IsOperationsEnabled)
+                            Logger.Operations($"DEBUG (HttpClient):Got {exception.SocketErrorCode} socket error code. {url} {exception}");
+                    }
+                    
                     return false;
             }
         }
@@ -1003,7 +1019,7 @@ namespace Raven.Client.Http
             {
                 using (GetContext(out var requestContext))
                 {
-                    if (e.InnerException is SocketException se && ShouldRemoveHttpClient(se))
+                    if (e.InnerException is SocketException se && ShouldRemoveHttpClient(se, url))
                     {
                         if (requestContext.HttpClientRemoved == false)
                         {
