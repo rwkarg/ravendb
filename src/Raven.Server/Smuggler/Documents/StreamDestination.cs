@@ -30,6 +30,7 @@ using Raven.Server.Config;
 using Raven.Server.Config.Categories;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Indexes;
+using Raven.Server.Documents.PeriodicBackup.Restore;
 using Raven.Server.Json;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide.Commands;
@@ -165,9 +166,11 @@ namespace Raven.Server.Smuggler.Documents
             return new StreamKeyValueActions<long>(_writer, nameof(DatabaseItemType.Identities));
         }
 
-        public ICompareExchangeActions CompareExchange(JsonOperationContext context)
+        public ICompareExchangeActions CompareExchange(JsonOperationContext context, RestoreBackupTaskBase.BackupType backupType)
         {
-            return new StreamCompareExchangeActions(_writer, nameof(DatabaseItemType.CompareExchange));
+            return backupType is RestoreBackupTaskBase.BackupType.Full or RestoreBackupTaskBase.BackupType.Incremental 
+                ? null
+                : new StreamCompareExchangeActions(_writer, nameof(DatabaseItemType.CompareExchange));
         }
 
         public ICompareExchangeActions CompareExchangeTombstones(JsonOperationContext context)
@@ -1304,7 +1307,7 @@ namespace Raven.Server.Smuggler.Documents
             {
             }
 
-            public async ValueTask WriteKeyValueAsync(string key, BlittableJsonReaderObject value, bool fromFullBackup)
+            public async ValueTask WriteKeyValueAsync(string key, BlittableJsonReaderObject value, Document existingDocument)
             {
                 using (value)
                 {
