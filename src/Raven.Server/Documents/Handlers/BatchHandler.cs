@@ -23,6 +23,7 @@ using Raven.Client.Exceptions.Documents;
 using Raven.Client.Json;
 using Raven.Server.Documents.Indexes;
 using Raven.Server.Documents.Patch;
+using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Documents.Replication;
 using Raven.Server.Json;
 using Raven.Server.Rachis;
@@ -630,7 +631,7 @@ namespace Raven.Server.Documents.Handlers
                                     {
                                         // if the document came from a full backup it must have the same collection
                                         // the only thing that we update is the change vector
-                                        if (cmd.FromFullBackup == false)
+                                        if (cmd.FromBackup is not BackupKind.Full)
                                         {
                                             // delete the document to avoid exception if we put new document in a different collection.
                                             using (DocumentIdWorker.GetSliceFromId(context, cmd.Id, out Slice lowerId))

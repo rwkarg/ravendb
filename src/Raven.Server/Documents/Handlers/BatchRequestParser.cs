@@ -18,6 +18,7 @@ using Raven.Client.Documents.Session;
 using Raven.Client.Documents.Smuggler;
 using Raven.Client.Util;
 using Raven.Server.Documents.Patch;
+using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Documents.TransactionCommands;
 using Raven.Server.Exceptions;
 using Raven.Server.ServerWide;
@@ -48,7 +49,6 @@ namespace Raven.Server.Documents.Handlers
             public bool IdPrefixed;
             public long Index;
             public bool FromEtl;
-            public bool FromFullBackup;
             public bool ReturnDocument;
 
             public bool SeenCounters;
@@ -693,18 +693,6 @@ namespace Raven.Server.Documents.Handlers
                         commandData.FromEtl = state.CurrentTokenType == JsonParserToken.True;
                         break;
 
-                    case CommandPropertyName.FromFullBackup:
-                        while (parser.Read() == false)
-                            await RefillParserBuffer(stream, buffer, parser, token);
-
-                        if (state.CurrentTokenType != JsonParserToken.True && state.CurrentTokenType != JsonParserToken.False)
-                        {
-                            ThrowUnexpectedToken(JsonParserToken.True, state);
-                        }
-
-                        commandData.FromFullBackup = state.CurrentTokenType == JsonParserToken.True;
-                        break;
-
                     case CommandPropertyName.AttachmentType:
                         while (parser.Read() == false)
                             await RefillParserBuffer(stream, buffer, parser, token);
@@ -1057,11 +1045,6 @@ namespace Raven.Server.Documents.Handlers
                         *(long*)(state.StringBuffer + sizeof(int)) == 8742740794129868899 &&
                         *(short*)(state.StringBuffer + sizeof(int) + sizeof(long)) == 25968)
                         return CommandPropertyName.AttachmentType;
-
-                    if (*(int*)state.StringBuffer == 1836020294 &&
-                        *(long*)(state.StringBuffer + sizeof(int)) == 7738135522667427142 &&
-                        *(short*)(state.StringBuffer + sizeof(int) + sizeof(long)) == 28789)
-                        return CommandPropertyName.FromFullBackup;
 
                     return CommandPropertyName.NoSuchProperty;
 

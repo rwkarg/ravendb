@@ -30,7 +30,7 @@ using Raven.Server.Config;
 using Raven.Server.Config.Categories;
 using Raven.Server.Documents;
 using Raven.Server.Documents.Indexes;
-using Raven.Server.Documents.PeriodicBackup.Restore;
+using Raven.Server.Documents.PeriodicBackup;
 using Raven.Server.Json;
 using Raven.Server.Routing;
 using Raven.Server.ServerWide.Commands;
@@ -166,7 +166,7 @@ namespace Raven.Server.Smuggler.Documents
             return new StreamKeyValueActions<long>(_writer, nameof(DatabaseItemType.Identities));
         }
 
-        public ICompareExchangeActions CompareExchange(JsonOperationContext context, RestoreBackupTaskBase.BackupType backupType, bool withDocuments)
+        public ICompareExchangeActions CompareExchange(JsonOperationContext context, BackupKind? backupKind, bool withDocuments)
         {
             return withDocuments ? null : new StreamCompareExchangeActions(_writer, nameof(DatabaseItemType.CompareExchange));
         }
