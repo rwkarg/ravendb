@@ -277,7 +277,8 @@ namespace Raven.Server.Documents.Handlers.Admin
         [RavenAction("/admin/cluster/bootstrap", "POST", AuthorizationStatus.ClusterAdmin)]
         public async Task Bootstrap()
         {
-            await ServerStore.EnsureNotPassiveAsync();
+            var tag = GetStringQueryString("tag", false) ?? "A";
+            await ServerStore.EnsureNotPassiveAsync(nodeTag: tag);
             NoContentStatus();
         }
 
